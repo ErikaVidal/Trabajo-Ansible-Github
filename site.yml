@@ -1,0 +1,14 @@
+---
+# ASO - Tareas 3 y 5: despliegue remoto en openSUSE 16.0 usando roles
+# Ejecutar: ansible-playbook site.yml -k --ask-vault-pass
+- name: Desplegar LAMP, phpMyAdmin, Samba, FTP y PostgreSQL
+  hosts: aso_servers
+  become: true
+  gather_facts: false   # ningun rol usa facts: se ahorra ese paso
+  roles:
+    - { role: apache_php, tags: [lamp, apache] }
+    - { role: mariadb, tags: [lamp, mariadb] }
+    - { role: phpmyadmin, tags: [lamp, phpmyadmin] }
+    - { role: samba, tags: [samba] }
+    - { role: vsftpd, tags: [ftp] }
+    - { role: postgresql, tags: [postgresql] }

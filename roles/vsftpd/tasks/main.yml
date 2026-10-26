@@ -1,0 +1,42 @@
+---
+- name: Instalar vsftpd
+  community.general.zypper:
+    name: vsftpd
+    state: present
+
+- name: Configurar vsftpd.conf desde plantilla
+  ansible.builtin.template:
+    src: vsftpd.conf.j2
+    dest: /etc/vsftpd.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reiniciar vsftpd
+
+- name: Leer booleano SELinux ftpd_full_access
+  ansible.builtin.command: getsebool ftpd_full_access
+  register: vsftpd_sebool
+  changed_when: false
+  failed_when: false
+
+- name: Permitir a FTP acceder a las carpetas de los usuarios (SELinux)
+  ansible.builtin.command: setsebool -P ftpd_full_access 1
+  when: "'off' in vsftpd_sebool.stdout"
+  changed_when: true
+
+- name: Abrir FTP y sus puertos pasivos en el firewall
+  ansible.posix.firewalld:
+    service: "{{ item.service | default(omit) }}"
+    port: "{{ item.port | default(omit) }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - { service: ftp }
+    - { port: "{{ vsftpd_pasv_min_port }}-{{ vsftpd_pasv_max_port }}/tcp" }
+
+- name: Iniciar y habilitar vsftpd
+  ansible.builtin.systemd:
+    name: vsftpd
+    state: started
+    enabled: true

@@ -1,0 +1,2 @@
+vsftpd_pasv_min_port: 40000
+vsftpd_pasv_max_port: 40100

@@ -1,0 +1,11 @@
+<?php
+// {{ ansible_managed }}
+// Prueba que la libreria php8-pgsql funciona y que el usuario del proyecto entra.
+$conn = @pg_connect("host=127.0.0.1 dbname={{ pg_app_db }} user={{ pg_app_user }} password={{ pg_app_password }}");
+if ($conn) {
+    $v = pg_fetch_row(pg_query($conn, "SELECT version()"));
+    echo "<h2>Conexion a PostgreSQL OK</h2><p>" . htmlspecialchars($v[0]) . "</p>";
+    pg_close($conn);
+} else {
+    echo "<h2>Error al conectar a PostgreSQL</h2>";
+}

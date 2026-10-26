@@ -1,0 +1,28 @@
+# Variables comunes del proyecto.
+# Las contrasenas NO van aqui: se toman del vault cifrado (vault.yml).
+
+ansible_user: root
+
+# --- MariaDB ---
+mariadb_socket: /run/mysql/mysql.sock
+mariadb_root_password: "{{ vault_mariadb_root_password }}"
+mariadb_app_db: aso_db
+mariadb_app_user: aso_admin
+mariadb_app_password: "{{ vault_mariadb_app_password }}"
+
+# --- phpMyAdmin ---
+phpmyadmin_blowfish_secret: "{{ vault_phpmyadmin_blowfish_secret }}"
+
+# --- Samba y FTP (comparten el mismo usuario de sistema) ---
+share_user: estudiante
+share_user_password: "{{ vault_share_user_password }}"
+share_group: aso_share
+
+# --- PostgreSQL ---
+pg_postgres_password: "{{ vault_pg_postgres_password }}"
+pg_app_user: aso_pguser
+pg_app_password: "{{ vault_pg_app_password }}"
+pg_app_db: aso_pgdb
+# Red desde la que se aceptan conexiones remotas (solo cifradas).
+# Cambiar a la subred del laboratorio, p.ej. 192.168.1.0/24
+pg_remote_network: 192.168.0.0/16

@@ -1,0 +1,6 @@
+<?php
+// {{ ansible_managed }}
+echo "<h1>ASO - Servidor LAMP desplegado con Ansible</h1>";
+echo "<p>Equipo: {{ inventory_hostname }}</p>";
+echo "<p><a href='/phpmyadmin/'>phpMyAdmin</a> | <a href='/pgtest.php'>Prueba PostgreSQL</a></p>";
+phpinfo();

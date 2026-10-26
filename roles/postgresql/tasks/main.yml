@@ -1,0 +1,103 @@
+---
+- name: Instalar PostgreSQL y la libreria php8-pgsql
+  community.general.zypper:
+    name: "{{ postgresql_packages }}"
+    state: present
+  notify: Recargar apache2 si existe
+
+# En openSUSE el primer arranque del servicio inicializa el cluster (initdb)
+- name: Iniciar y habilitar PostgreSQL
+  ansible.builtin.systemd:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: Poner contrasena al usuario postgres
+  community.postgresql.postgresql_user:
+    name: postgres
+    password: "{{ pg_postgres_password }}"
+  become: true
+  become_user: postgres
+  no_log: true
+
+- name: Crear usuario del proyecto
+  community.postgresql.postgresql_user:
+    name: "{{ pg_app_user }}"
+    password: "{{ pg_app_password }}"
+    state: present
+  become: true
+  become_user: postgres
+  no_log: true
+
+- name: Crear base de datos del proyecto (duena el usuario del proyecto)
+  community.postgresql.postgresql_db:
+    name: "{{ pg_app_db }}"
+    owner: "{{ pg_app_user }}"
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Generar certificado SSL autofirmado
+  ansible.builtin.command: >
+    openssl req -new -x509 -nodes -days {{ postgresql_ssl_days }}
+    -subj "/CN={{ ansible_host | default(inventory_hostname) }}"
+    -keyout {{ postgresql_data_dir }}/server.key
+    -out {{ postgresql_data_dir }}/server.crt
+  args:
+    creates: "{{ postgresql_data_dir }}/server.crt"
+  notify: Reiniciar postgresql
+
+- name: Duenio y permisos del certificado y la llave
+  ansible.builtin.file:
+    path: "{{ postgresql_data_dir }}/{{ item.file }}"
+    owner: postgres
+    group: postgres
+    mode: "{{ item.mode }}"
+  loop:
+    - { file: server.crt, mode: "0644" }
+    - { file: server.key, mode: "0600" }
+
+- name: Escuchar en la red, activar SSL y cifrar contrasenas con SCRAM
+  ansible.builtin.lineinfile:
+    path: "{{ postgresql_data_dir }}/postgresql.conf"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regexp: "^#?listen_addresses", line: "listen_addresses = '*'" }
+    - { regexp: "^#?ssl =", line: "ssl = on" }
+    - { regexp: "^#?password_encryption", line: "password_encryption = scram-sha-256" }
+  notify: Reiniciar postgresql
+
+# hostssl = solo acepta la conexion remota si va cifrada con SSL
+- name: Reglas de acceso en pg_hba.conf
+  ansible.builtin.blockinfile:
+    path: "{{ postgresql_data_dir }}/pg_hba.conf"
+    insertbefore: BOF
+    marker: "# {mark} ANSIBLE - acceso por red"
+    block: |
+      host     all  all  127.0.0.1/32            scram-sha-256
+      hostssl  all  all  {{ pg_remote_network }}  scram-sha-256
+      hostnossl all all  0.0.0.0/0               reject
+  notify: Reiniciar postgresql
+
+- name: Abrir PostgreSQL (5432) en el firewall
+  ansible.posix.firewalld:
+    service: postgresql
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Ver si Apache esta instalado (para la pagina de prueba)
+  ansible.builtin.stat:
+    path: /srv/www/htdocs
+  register: postgresql_docroot
+
+- name: Pagina de prueba PHP -> PostgreSQL
+  ansible.builtin.template:
+    src: pgtest.php.j2
+    dest: /srv/www/htdocs/pgtest.php
+    owner: root
+    group: www
+    mode: "0640"
+  when: postgresql_docroot.stat.exists
+  no_log: true

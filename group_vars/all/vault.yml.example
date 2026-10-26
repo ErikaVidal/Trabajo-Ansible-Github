@@ -1,0 +1,12 @@
+# PLANTILLA del vault (sin secretos reales).
+# Para crear uno propio:
+#   cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+#   (cambiar los valores)
+#   ansible-vault encrypt group_vars/all/vault.yml
+vault_mariadb_root_password: "CambiarRoot123"
+vault_mariadb_app_password: "CambiarApp123"
+# phpMyAdmin exige exactamente 32 caracteres
+vault_phpmyadmin_blowfish_secret: "Cambiar32CaracteresExactos123456"
+vault_share_user_password: "CambiarShare123"
+vault_pg_postgres_password: "CambiarPostgres123"
+vault_pg_app_password: "CambiarPgApp123"

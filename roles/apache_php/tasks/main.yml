@@ -1,0 +1,49 @@
+---
+- name: Instalar Apache y PHP en una sola transaccion
+  community.general.zypper:
+    name: "{{ apache_php_packages }}"
+    state: present
+
+- name: Ver si el modulo php8 ya esta habilitado en Apache
+  ansible.builtin.command: a2enmod -q php8
+  register: apache_php_mod
+  changed_when: false
+  failed_when: false
+
+- name: Habilitar el modulo php8
+  ansible.builtin.command: a2enmod php8
+  when: apache_php_mod.rc != 0
+  changed_when: true
+  notify: Reiniciar apache2
+
+- name: Pagina de inicio con phpinfo
+  ansible.builtin.template:
+    src: index.php.j2
+    dest: "{{ apache_php_docroot }}/index.php"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Leer booleano SELinux httpd_can_network_connect_db
+  ansible.builtin.command: getsebool httpd_can_network_connect_db
+  register: apache_php_sebool
+  changed_when: false
+  failed_when: false
+
+- name: Permitir que PHP se conecte a las bases de datos (SELinux)
+  ansible.builtin.command: setsebool -P httpd_can_network_connect_db 1
+  when: "'off' in apache_php_sebool.stdout"
+  changed_when: true
+
+- name: Iniciar y habilitar Apache
+  ansible.builtin.systemd:
+    name: apache2
+    state: started
+    enabled: true
+
+- name: Abrir HTTP en el firewall
+  ansible.posix.firewalld:
+    service: http
+    permanent: true
+    immediate: true
+    state: enabled

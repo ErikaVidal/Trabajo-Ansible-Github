@@ -1,0 +1,37 @@
+---
+# Se usa el paquete oficial (tar.gz) porque no depende de repositorios extra
+- name: Instalar tar y gzip (no vienen en la instalacion minima)
+  community.general.zypper:
+    name: [tar, gzip]
+    state: present
+
+- name: Descargar phpMyAdmin {{ phpmyadmin_version }}
+  ansible.builtin.get_url:
+    url: "{{ phpmyadmin_url }}"
+    dest: "/tmp/phpMyAdmin-{{ phpmyadmin_version }}.tar.gz"
+    mode: "0644"
+
+- name: Descomprimir phpMyAdmin en /srv/www
+  ansible.builtin.unarchive:
+    src: "/tmp/phpMyAdmin-{{ phpmyadmin_version }}.tar.gz"
+    dest: /srv/www
+    remote_src: true
+    creates: "{{ phpmyadmin_dir }}/index.php"
+
+- name: Configuracion de phpMyAdmin (login por cookie contra MariaDB local)
+  ansible.builtin.template:
+    src: config.inc.php.j2
+    dest: "{{ phpmyadmin_dir }}/config.inc.php"
+    owner: root
+    group: www
+    mode: "0640"
+  no_log: true
+
+- name: Publicar phpMyAdmin en http://IP/phpmyadmin
+  ansible.builtin.template:
+    src: phpmyadmin.conf.j2
+    dest: /etc/apache2/conf.d/phpmyadmin.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reiniciar apache2 (phpmyadmin)

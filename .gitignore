@@ -1,0 +1,7 @@
+# Contrasena del vault: NUNCA subirla
+.vault_pass
+*.retry
+*.zip
+*.tar.gz
+# Notas internas del equipo
+Falta por hacer/

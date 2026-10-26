@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+[global]
+   workgroup = {{ samba_workgroup }}
+   server string = Servidor Samba ASO (Ansible)
+   security = user
+   passdb backend = tdbsam
+   map to guest = Never
+   server min protocol = SMB2
+   log file = /var/log/samba/log.%m
+   max log size = 1000
+
+[{{ samba_share_name }}]
+   comment = Recurso compartido creado con Ansible
+   path = {{ samba_share_path }}
+   browseable = yes
+   read only = no
+   valid users = @{{ share_group }}
+   force group = {{ share_group }}
+   create mask = {{ samba_create_mask }}
+   directory mask = {{ samba_directory_mask }}

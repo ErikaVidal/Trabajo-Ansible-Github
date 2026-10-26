@@ -1,0 +1,64 @@
+---
+- name: Instalar MariaDB
+  community.general.zypper:
+    name: "{{ mariadb_packages }}"
+    state: present
+
+- name: Iniciar y habilitar MariaDB
+  ansible.builtin.systemd:
+    name: mariadb
+    state: started
+    enabled: true
+
+# La primera vez root entra por socket sin contrasena (check_implicit_admin);
+# en las siguientes ejecuciones ya usa la contrasena del vault.
+- name: Poner contrasena a root de MariaDB
+  community.mysql.mysql_user:
+    name: root
+    host: localhost
+    password: "{{ mariadb_root_password }}"
+    check_implicit_admin: true
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
+    login_unix_socket: "{{ mariadb_socket }}"
+  no_log: true
+
+- name: Borrar usuarios anonimos
+  community.mysql.mysql_user:
+    name: ""
+    host_all: true
+    state: absent
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
+    login_unix_socket: "{{ mariadb_socket }}"
+  no_log: true
+
+- name: Borrar la base de prueba
+  community.mysql.mysql_db:
+    name: test
+    state: absent
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
+    login_unix_socket: "{{ mariadb_socket }}"
+  no_log: true
+
+- name: Crear la base de datos del proyecto
+  community.mysql.mysql_db:
+    name: "{{ mariadb_app_db }}"
+    state: present
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
+    login_unix_socket: "{{ mariadb_socket }}"
+  no_log: true
+
+- name: Crear usuario del proyecto con permisos solo sobre su base
+  community.mysql.mysql_user:
+    name: "{{ mariadb_app_user }}"
+    host: localhost
+    password: "{{ mariadb_app_password }}"
+    priv: "{{ mariadb_app_db }}.*:ALL"
+    state: present
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
+    login_unix_socket: "{{ mariadb_socket }}"
+  no_log: true

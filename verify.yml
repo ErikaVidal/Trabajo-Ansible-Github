@@ -1,0 +1,31 @@
+---
+# Comprobacion rapida despues del despliegue (no cambia nada en el destino)
+# Ejecutar: ansible-playbook verify.yml -k
+- name: Verificar que los servicios responden
+  hosts: aso_servers
+  gather_facts: false
+  tasks:
+    - name: Servicios activos
+      ansible.builtin.command: systemctl is-active {{ item }}
+      loop: [apache2, mariadb, smb, nmb, vsftpd, postgresql]
+      changed_when: false
+
+    - name: Puertos escuchando (HTTP, SMB, FTP, PostgreSQL)
+      ansible.builtin.wait_for:
+        port: "{{ item }}"
+        timeout: 5
+      loop: [80, 445, 21, 5432]
+
+    - name: Apache/PHP y phpMyAdmin responden por HTTP
+      ansible.builtin.uri:
+        url: "http://127.0.0.1{{ item }}"
+        status_code: 200
+      loop: [/, /phpmyadmin/]
+
+    - name: PostgreSQL tiene SSL activado
+      ansible.builtin.command: psql -tAc "SHOW ssl"
+      become: true
+      become_user: postgres
+      register: pg_ssl
+      changed_when: false
+      failed_when: pg_ssl.stdout != "on"

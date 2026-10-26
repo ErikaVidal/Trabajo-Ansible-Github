@@ -1,0 +1,6 @@
+samba_workgroup: WORKGROUP
+samba_share_name: aso_share
+samba_share_path: /srv/samba/aso_share
+# Permisos de archivos y carpetas nuevas creadas desde el cliente
+samba_create_mask: "0664"
+samba_directory_mask: "0775"

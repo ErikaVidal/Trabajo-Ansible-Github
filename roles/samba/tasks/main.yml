@@ -1,0 +1,84 @@
+---
+- name: Instalar Samba
+  community.general.zypper:
+    name: [samba, samba-client]
+    state: present
+
+- name: Crear grupo del recurso compartido
+  ansible.builtin.group:
+    name: "{{ share_group }}"
+    state: present
+
+- name: Crear usuario de sistema
+  ansible.builtin.user:
+    name: "{{ share_user }}"
+    groups: "{{ share_group }}"
+    append: true
+    shell: /bin/bash
+    create_home: true
+  register: samba_sys_user
+
+- name: Contrasena del usuario de sistema (solo cuando se crea)
+  ansible.builtin.command: chpasswd
+  args:
+    stdin: "{{ share_user }}:{{ share_user_password }}"
+  when: samba_sys_user.changed
+  changed_when: true
+  no_log: true
+
+- name: Crear directorio compartido
+  ansible.builtin.file:
+    path: "{{ samba_share_path }}"
+    state: directory
+    owner: "{{ share_user }}"
+    group: "{{ share_group }}"
+    mode: "2775"   # setgid: lo nuevo hereda el grupo
+
+- name: Ver si el usuario ya existe en Samba
+  ansible.builtin.command: pdbedit -L -u {{ share_user }}
+  register: samba_pdb
+  changed_when: false
+  failed_when: false
+
+- name: Crear usuario Samba
+  ansible.builtin.command: smbpasswd -a -s {{ share_user }}
+  args:
+    stdin: "{{ share_user_password }}\n{{ share_user_password }}"
+  when: samba_pdb.rc != 0
+  changed_when: true
+  no_log: true
+
+- name: Configurar smb.conf desde plantilla (con create mask)
+  ansible.builtin.template:
+    src: smb.conf.j2
+    dest: /etc/samba/smb.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: testparm -s %s
+  notify: Reiniciar samba
+
+- name: Leer booleano SELinux samba_export_all_rw
+  ansible.builtin.command: getsebool samba_export_all_rw
+  register: samba_sebool
+  changed_when: false
+  failed_when: false
+
+- name: Permitir lectura y escritura del recurso (SELinux)
+  ansible.builtin.command: setsebool -P samba_export_all_rw 1
+  when: "'off' in samba_sebool.stdout"
+  changed_when: true
+
+- name: Abrir Samba en el firewall
+  ansible.posix.firewalld:
+    service: samba
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Iniciar y habilitar smb y nmb
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop: [smb, nmb]

@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+Alias /phpmyadmin {{ phpmyadmin_dir }}
+
+<Directory {{ phpmyadmin_dir }}>
+    DirectoryIndex index.php
+    Options FollowSymLinks
+    AllowOverride None
+    Require all granted
+</Directory>
+
+# Carpetas internas que no deben verse desde el navegador
+<DirectoryMatch "{{ phpmyadmin_dir }}/(libraries|templates|vendor|sql)">
+    Require all denied
+</DirectoryMatch>

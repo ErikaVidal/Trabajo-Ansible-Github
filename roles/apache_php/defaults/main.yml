@@ -1,0 +1,11 @@
+apache_php_packages:
+  - apache2
+  - apache2-mod_php8
+  - php8
+  - php8-mysql
+  - php8-mbstring
+  - php8-gd
+  - php8-zip
+  - php8-curl
+  - php8-openssl
+apache_php_docroot: /srv/www/htdocs
